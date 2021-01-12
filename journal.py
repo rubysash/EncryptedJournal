@@ -1,25 +1,40 @@
 '''
 encrypted journal
 
+guides you through basic mindfulness questions to fix possible cognitive distortions
+
 Clear TX Word+date is filename
 Summary and Entry are encrypted
 Meta data of word and date are stored in case file name needs to change
 Can Load previous entries
-Can Save Current
+Can Save Current on top of existing
 Has "Inspire me" option for fun
 
 
 Todo:
 pep 8 format
+move the inspirations out to separate json
+update inspirations with attribs
+clean up code
+verify tkinter/tk/ttk modules all needed
+Move save button next to encryption keys
+Button Help to show how to use/encrypt/load 
+Warn if not enough entropy on password
+Warn if sample clicked that it will overwrite
+Add a clear button
+Add tab order that is logical
+Clean up filename/date boxes, ugly
 
-To install modules on windows:
+
+To install modules/windows
 python -m pip install --upgrade pip
 pip3 install tkinter
 pip3 install base64
 pip3 install hashlib
 pip3 install pycrypttodome
 
-To install on Linux (Debian 10 at least):
+
+To install on modules/Linux (Debian 10 at least):
 sudo apt-get install python3-tk
 pip3 install pybase64
 pip3 isntall pycryptodomex
@@ -31,9 +46,13 @@ Version history is at the end of the file
 # gui stuff
 import tkinter as tk
 import tkinter.messagebox as mb                             # to make the popup
+
+from tkinter import *
 from tkinter import Tk, Text, BOTH, W, N, E, S, DISABLED
-from tkinter.ttk import Frame, Button, Label, Style
 from tkinter import filedialog                              # for file selector
+
+from tkinter import ttk
+from tkinter.ttk import Frame, Button, Label, Style, LabelFrame
 
 import json                                                 # file i/o stuff and json serialization/deserialization
 from datetime import datetime                               # for date time filename
@@ -50,22 +69,39 @@ from Cryptodome.Random import get_random_bytes
 
 # globals
 debug = 0
-startDir = "C:/git/digitaljournal2"
-title = "Encrypted Thought Pre-Processor V 2.02"
+startDir = "C:/backup/journal"
+title = "Encrypted Thought Pre-Processor V 3.00"
 
 # general appearances
 # todo: fix up fonts and bold stuff, hard to read
 opts1 = { 'ipadx': 5, 'ipady': 5 , 'sticky': 'nswe' } # centered
 opts2 = { 'ipadx': 5, 'ipady': 5 , 'sticky': 'e' } # right justified
 opts3 = { 'ipadx': 5, 'ipady': 5 , 'sticky': 'w' } # left justified
+opts4 = { 'fg': 'red', 'font': 14}
+
+# some colors
 bgcolor = '#ECECEC'
-white = '#FFFFFF'
+white  = '#FFFFFF'
+
+dblack = '#000000'
+lblack = '#444444'
+
+dred   = '#FF0000'
+lred   = '#f9dede'
+
+dgreen = '#076d05'
+lgreen = '#e0f9d9'
+
+dblue  = '#0000FF'
+lblue  = '#e2e6ff'
 
 class App(Frame):
 
     # track stuff like failed attempts and run timer
     fails = 0
     startTime = time.time()
+
+
 
     def __init__(self):
         super().__init__()
@@ -76,6 +112,7 @@ class App(Frame):
         # colum 1 and colum 12 are just space holders.
 
         self.master.title(title)
+        #self.master.geometry("480x480")
         self.pack(fill=BOTH, expand=True)
 
         # variables we are using/looking for
@@ -100,80 +137,126 @@ class App(Frame):
         self.label_ne = tk.Label(self, text=" ", bg=bgcolor)
         self.label_ne.grid(row=0, column=12, **opts1)
 
-        # first header
-        self.label_a = tk.Label(self, text="Plain Text: (Word+Date Makes File Name)", bg=bgcolor)
-        self.label_a.grid(row=0, column=1, columnspan=8, **opts1)
+        # define style of label headers
+        self.s = ttk.Style()
+        self.s.configure('R.TLabelframe.Label', font=('courier', 14, 'bold'), foreground=dred, background=lred)
+        self.s.configure('G.TLabelframe.Label', font=('courier', 14, 'bold'), foreground=dgreen, background=lgreen)
+        self.s.configure('B.TLabelframe.Label', font=('courier', 14, 'bold'), foreground=dblue, background=lblue)
 
-        # Clear button
-        btn_clear = tk.Button(self, text=" Clear ",command=self.clear, bg=bgcolor)
-        btn_clear.grid(row=1,column=11,  **opts1)
+
+
+        # label frame box
+        self.plaintext = LabelFrame(self, text="PLAIN TEXT (RED)",style="R.TLabelframe")
+        self.plaintext.grid(row=1, column=1, columnspan=11, **opts1)
 
         # Build File Name:
-        tk.Label(self, text="One Word").grid(row=1, column=1, columnspan=2, **opts2)
-        tk.Entry(self, textvariable=self.word).grid(row=1, column=3, columnspan=2, **opts3)
+        tk.Label(self.plaintext, text="File Name", fg=dred
+            ).grid(row=1, column=1, columnspan=2, **opts2)
+        tk.Entry(self.plaintext, textvariable=self.word, fg=dred, bg=lred
+            ).grid(row=1, column=3, columnspan=2, **opts3)
 
-        tk.Label(self, text="Date").grid(row=1, column=5, columnspan=2, **opts2)
-        tk.Entry(self, textvariable=self.date, state=DISABLED).grid(row=1, column=7, columnspan=2, **opts3)
+        tk.Label(self.plaintext, text="Date", fg=dred
+            ).grid(row=1, column=5, columnspan=2, **opts2)
+        tk.Entry(self.plaintext, textvariable=self.date, fg=dred, bg=lred
+            ).grid(row=1, column=7, columnspan=2, **opts3)
+
+
+
+
+        # label frame box
+        self.controls = LabelFrame(self, text="CONTROLS", style="B.TLabelframe")
+        self.controls.grid(row=2, column=1, columnspan=6, **opts1)
+        
+        # Clear button
+        btn_clear = tk.Button(self.controls, text=" SAMPLE ",command=self.clear, fg=dblue, bg=lblue)
+        btn_clear.grid(row=1,column=1,  **opts1)
+
+        # inspire button
+        btn_inspire = tk.Button(self.controls, text=" IDEAS ",command=self.inspire, fg=dblue, bg=lblue)
+        btn_inspire.grid(row=1, column=2,  **opts1)
+
+        # save button
+        btn_save = tk.Button(self.controls, text=" SAVE ",command=self.save, fg=dblue, bg=lblue)
+        btn_save.grid(row=1,column=3,  **opts1)
 
         # Load button and file entry (disabled)
         self.loadfile = tk.StringVar()
-        self.btn_load = tk.Button(self, text="LOAD",command=self.load, bg=bgcolor)
-        self.btn_load.grid(row=2,column=11, **opts1)
-        tk.Entry(self, textvariable=self.loadfile, state=DISABLED).grid(row=2, column=1, columnspan=8, **opts1)
+        self.btn_load = tk.Button(self.controls, text=" LOAD ",command=self.load, fg=dblue, bg=lblue)
+        self.btn_load.grid(row=1,column=4, **opts1)
+        tk.Entry(self.controls, textvariable=self.loadfile, bg=lblue).grid(row=2, column=1, columnspan=8, **opts1)
 
-        # header
-        self.label_c = tk.Label(self, text="Everything Below is Encrypted (AES) When you Save", bg=bgcolor)
-        self.label_c.grid(row=3, column=1, columnspan=11, **opts1)
 
-        # save button
-        btn_save = tk.Button(self, text=" Save ",command=self.save, bg=bgcolor)
-        btn_save.grid(row=3,column=11,  **opts1)
 
-        # Event Summary field
-        tk.Label(self, text="Event Summary").grid(row=4, column=1, columnspan=2, **opts2)
-        tk.Entry(self, textvariable=self.summary).grid(row=4, column=3, columnspan=7, **opts1)
-
-        # inspire button
-        btn_inspire = tk.Button(self, text=" Inspire ",command=self.inspire, bg=bgcolor)
-        btn_inspire.grid(row=4, column=11,  **opts1)
 
         # go ahead and focus on the inspire button
         btn_inspire.focus_set()
 
-        # header
-        self.label_d = tk.Label(self, text="My Perceptions and Feelings - My Point of View", bg=bgcolor)
-        self.label_d.grid(row=5, column=1, columnspan=11, **opts1)
 
-        # What did I think happened
-        self.perception.grid(row=6, column=1, columnspan=11, rowspan=5, **opts1)
-
-        # header
-        self.label_e = tk.Label(self, text="Objective, Verifiable Facts - Outsider View", bg=bgcolor)
-        self.label_e.grid(row=11, column=1, columnspan=11, **opts1)
-
-        # how did things actually go down, 
-        self.reality.grid(row=12, column=1, columnspan=11, rowspan=5, **opts1)
-
-        # header
-        self.label_f = tk.Label(self, text="Opportunties for Improvement - Brainstorm!", bg=bgcolor)
-        self.label_f.grid(row=17, column=1, columnspan=11, **opts1)
-
-        # how can I fix my thinking or prevent this problem?
-        self.opportunity.grid(row=18, column=1, columnspan=11, rowspan=5, **opts1)
-
-        # header
-        self.label_g = tk.Label(self, text="Key for Decryption, Key+Verify for Encryption", bg=bgcolor)
-        self.label_g.grid(row=23, column=1, columnspan=11, **opts1)
+        # label frame box
+        self.keys = LabelFrame(self, text="ENCRYPTION KEYS", style="G.TLabelframe")
+        self.keys.grid(row=2, column=6, columnspan=6, **opts1)
 
         # Encrypt Keys, fields for V2
-        tk.Label(self, text="Key").grid(row=24, column=1, columnspan=3, **opts2)
-        tk.Entry(self, textvariable=self.key1, show="*").grid(row=24, column=4, columnspan=8, **opts1)
-        tk.Label(self, text="Verify").grid(row=25, column=1, columnspan=3, **opts2)
-        tk.Entry(self, textvariable=self.key2, show="*").grid(row=25, column=4, columnspan=8, **opts1)
+        tk.Label(self.keys, text="Key", fg=dgreen
+            ).grid(row=1, column=1, columnspan=2, **opts3)
+        tk.Entry(self.keys, textvariable=self.key1, show="*",  fg=dgreen, bg=lgreen
+            ).grid(row=1, column=3, columnspan=8, **opts3)
+
+        tk.Label(self.keys, text="Verify", fg=dgreen
+            ).grid(row=2, column=1, columnspan=2, **opts3)
+        tk.Entry(self.keys, textvariable=self.key2, show="*",  fg=dgreen, bg=lgreen
+            ).grid(row=2, column=3, columnspan=8, **opts3)
+
+
+
+
+        # encrypted section
+        self.encrypted = LabelFrame(self,text="ENCRYPTED (GREEN)", style="G.TLabelframe")
+        self.encrypted.grid(row=3, column=1, columnspan=11, **opts1)
+
+
+        # Event Summary field
+        tk.Label(self.encrypted,
+            text="Event Summary", fg=dgreen
+            ).grid(row=1, column=1, columnspan=11, **opts3)
+        tk.Entry(self.encrypted, textvariable=self.summary, fg=dgreen,bg=lgreen
+            ).grid(row=2, column=1, columnspan=11, **opts1)
+
+
+        # header
+        tk.Label(self.encrypted,
+            text="My Perceptions and Feelings - My Point of View", fg=dgreen
+            ).grid(row=3, column=1, columnspan=11, **opts3)
+
+        # What did I think happened
+        self.perception = tk.Text(self.encrypted, fg=dgreen,bg=lgreen, height=5)
+        self.perception.grid(row=4, column=1, columnspan=11, rowspan=3, **opts1)
+
+
+        # header
+        self.label_e = tk.Label(self.encrypted,
+            text="Objective, Verifiable Facts - Outsider View", fg=dgreen
+            ).grid(row=7, column=1, columnspan=11, **opts3)
+
+        # how did things actually go down, 
+        self.reality = tk.Text(self.encrypted, fg=dgreen, bg=lgreen, height=5)
+        self.reality.grid(row=8, column=1, columnspan=11, rowspan=3, **opts1)
+
+
+
+        # header
+        self.label_f = tk.Label(self.encrypted,
+            text="Opportunties for Improvement - Brainstorm!", fg=dgreen
+            ).grid(row=14, column=1, columnspan=11, **opts3)
+
+        # how can I fix my thinking or prevent this problem?
+        self.opportunity = tk.Text(self.encrypted, fg=dgreen, bg=lgreen, height=5)
+        self.opportunity.grid(row=15, column=1, columnspan=11, rowspan=5, **opts1)
+
 
         # final header/spacer
-        self.label_h = tk.Label(self, text=" ", bg=bgcolor)
-        self.label_h.grid(row=26, column=1, columnspan=11, **opts1)
+        self.label_h = tk.Label(self, text=" ", bg=bgcolor
+            ).grid(row=20, column=1, columnspan=11, **opts1)
 
 
     """
@@ -203,9 +286,9 @@ class App(Frame):
     """
     def clear(self):
         # clear out the old data
-        self.perception.delete("1.0", tk.END)
-        self.reality.delete("1.0", tk.END)
-        self.opportunity.delete("1.0", tk.END)
+        self.perception.delete('1.0', tk.END)
+        self.reality.delete('1.0', tk.END)
+        self.opportunity.delete('1.0', tk.END)
         self.word.set("")
         self.summary.set("")
         self.key1.set("")
@@ -693,7 +776,11 @@ def main():
 
 # ok, do the stuff above
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("CTRL+C Detected, stopping")
+        sys.exit()
 
 
 """
@@ -701,6 +788,12 @@ VERSION HISTORY
 2.00 - added encryption/decryption routines
 2.01 - code cleanup and comments
 2.02 - masked key fields in case of shoulder surfer
+3.00 - moved to smaller screen so it fits on chrome
+     - tested on chrome/deb 10 and updated instructions
+     - some code cleanup towards pep8
+     - color coded encryption/plaintext
+     - added style
+     - added ctrl C check
 
 KNOWN ISSUES
 tested with 27k byte file (equiv to writing 9 full pages of text in the journal), program ran fine
