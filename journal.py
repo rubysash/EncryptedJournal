@@ -12,12 +12,17 @@ Has "Inspire me" option for fun
 Todo:
 pep 8 format
 
-To install modules:
+To install modules on windows:
 python -m pip install --upgrade pip
 pip3 install tkinter
 pip3 install base64
 pip3 install hashlib
 pip3 install pycrypttodome
+
+To install on Linux (Debian 10 at least):
+sudo apt-get install python3-tk
+pip3 install pybase64
+pip3 isntall pycryptodomex
 
 
 Version history is at the end of the file
